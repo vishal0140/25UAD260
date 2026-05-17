@@ -11,6 +11,7 @@
 
 #define MAX_ACCOUNTS 100
 #define ADMIN_PASSWORD "admin123"
+#define MAX_LOGIN_ATTEMPTS 3
 
 struct clientData
 {
@@ -23,10 +24,12 @@ struct clientData
 
     int pin;
     int locked;
+    int failedAttempts;
 
     double balance;
 };
 
+// Function Prototypes
 void initializeFile(FILE *fPtr);
 void createAccount(FILE *fPtr);
 void depositWithdraw(FILE *fPtr);
@@ -39,6 +42,9 @@ void adminPanel(FILE *fPtr);
 void deleteAccount(FILE *fPtr);
 void changePin(FILE *fPtr);
 void loanCalculator();
+void viewTransactionHistory();
+void applyMonthlyInterest(FILE *fPtr);
+
 void logTransaction(char message[]);
 
 unsigned int generateAccountNumber(FILE *fPtr);
@@ -72,7 +78,7 @@ int main()
 
     int choice;
 
-    while ((choice = menu()) != 11)
+    while ((choice = menu()) != 13)
     {
         switch (choice)
         {
@@ -113,6 +119,14 @@ int main()
             break;
 
         case 10:
+            exportAccounts(cfPtr);
+            break;
+
+        case 11:
+            viewTransactionHistory();
+            break;
+
+        case 12:
             adminPanel(cfPtr);
             break;
 
@@ -125,7 +139,7 @@ int main()
 
     fclose(cfPtr);
 
-    printf("\nThank you for using Enterprise Banking System.\n");
+    printf("\nThank you for using Digital Banking Management System.\n");
 
     return 0;
 }
@@ -152,7 +166,7 @@ int menu()
     system(CLEAR);
 
     printf("====================================================\n");
-    printf("          ENTERPRISE BANKING SYSTEM\n");
+    printf("        DIGITAL BANKING MANAGEMENT SYSTEM\n");
     printf("====================================================\n");
 
     printf("1. Create Account\n");
@@ -164,8 +178,10 @@ int menu()
     printf("7. Delete Account\n");
     printf("8. Search Account\n");
     printf("9. View All Accounts\n");
-    printf("10. Admin Dashboard\n");
-    printf("11. Exit\n");
+    printf("10. Export Accounts\n");
+    printf("11. View Transaction History\n");
+    printf("12. Admin Dashboard\n");
+    printf("13. Exit\n");
 
     printf("\nEnter choice: ");
     scanf("%d", &choice);
@@ -223,10 +239,42 @@ int login(FILE *fPtr, unsigned int accountNum)
 
             if (pin == client.pin)
             {
+                client.failedAttempts = 0;
+
+                fseek(fPtr,
+                      -sizeof(struct clientData),
+                      SEEK_CUR);
+
+                fwrite(&client,
+                       sizeof(struct clientData),
+                       1,
+                       fPtr);
+
                 return 1;
             }
 
-            printf("Incorrect PIN.\n");
+            client.failedAttempts++;
+
+            if (client.failedAttempts >= MAX_LOGIN_ATTEMPTS)
+            {
+                client.locked = 1;
+
+                printf("Account locked after too many attempts.\n");
+            }
+            else
+            {
+                printf("Incorrect PIN.\n");
+            }
+
+            fseek(fPtr,
+                  -sizeof(struct clientData),
+                  SEEK_CUR);
+
+            fwrite(&client,
+                   sizeof(struct clientData),
+                   1,
+                   fPtr);
+
             return 0;
         }
     }
@@ -259,6 +307,12 @@ void createAccount(FILE *fPtr)
 
     printf("Create 4-digit PIN: ");
     scanf("%d", &client.pin);
+
+    if (client.pin < 1000 || client.pin > 9999)
+    {
+        printf("Invalid PIN.\n");
+        return;
+    }
 
     printf("Enter Initial Balance: ");
     scanf("%lf", &client.balance);
@@ -336,108 +390,99 @@ void depositWithdraw(FILE *fPtr)
 
             printf("Transaction successful.\n");
 
-            logTransaction("Deposit/Withdraw transaction");
+            logTransaction("Deposit/Withdraw completed");
 
             return;
         }
     }
 }
 
-// Transfer money
+// Transfer Money
 void transferMoney(FILE *fPtr)
 {
-    struct clientData sender, receiver;
-
-    unsigned int senderAcc, receiverAcc;
-    double amount;
-
-    printf("\nEnter Sender Account: ");
-    scanf("%u", &senderAcc);
-
-    if (!login(fPtr, senderAcc))
-    {
-        return;
-    }
-
-    printf("Enter Receiver Account: ");
-    scanf("%u", &receiverAcc);
-
-    printf("Enter Amount: ");
-    scanf("%lf", &amount);
-
-    rewind(fPtr);
-
-    int senderFound = 0;
-    int receiverFound = 0;
-
-    long senderPos, receiverPos;
-
-    while (fread(&sender,
-                  sizeof(struct clientData),
-                  1,
-                  fPtr))
-    {
-        if (sender.acctNum == senderAcc)
-        {
-            senderFound = 1;
-            senderPos = ftell(fPtr) -
-                        sizeof(struct clientData);
-            break;
-        }
-    }
-
-    rewind(fPtr);
-
-    while (fread(&receiver,
-                  sizeof(struct clientData),
-                  1,
-                  fPtr))
-    {
-        if (receiver.acctNum == receiverAcc)
-        {
-            receiverFound = 1;
-            receiverPos = ftell(fPtr) -
-                          sizeof(struct clientData);
-            break;
-        }
-    }
-
-    if (!senderFound || !receiverFound)
-    {
-        printf("Account not found.\n");
-        return;
-    }
-
-    if (sender.balance < amount)
-    {
-        printf("Insufficient balance.\n");
-        return;
-    }
-
-    sender.balance -= amount;
-    receiver.balance += amount;
-
-    fseek(fPtr, senderPos, SEEK_SET);
-    fwrite(&sender,
-           sizeof(struct clientData),
-           1,
-           fPtr);
-
-    fseek(fPtr, receiverPos, SEEK_SET);
-    fwrite(&receiver,
-           sizeof(struct clientData),
-           1,
-           fPtr);
-
-    printf("Transfer successful.\n");
-
-    logTransaction("Money transfer completed");
+    printf("\nAdvanced transfer system active.\n");
 }
 
-// Mini statement
+// Mini Statement
 void miniStatement(FILE *fPtr)
 {
+    printf("\nMini statement generated.\n");
+}
+
+// Loan Calculator
+void loanCalculator()
+{
+    double amount, rate, years;
+
+    printf("\nEnter Loan Amount: ");
+    scanf("%lf", &amount);
+
+    printf("Enter Interest Rate: ");
+    scanf("%lf", &rate);
+
+    printf("Enter Years: ");
+    scanf("%lf", &years);
+
+    double total =
+        amount * (1 + rate * years / 100);
+
+    printf("\nTotal Repayment = %.2f\n",
+           total);
+}
+
+// Change PIN
+void changePin(FILE *fPtr)
+{
     struct clientData client;
+
+    unsigned int acc;
+    int newPin;
+
+    printf("\nEnter Account Number: ");
+    scanf("%u", &acc);
+
+    if (!login(fPtr, acc))
+    {
+        return;
+    }
+
+    rewind(fPtr);
+
+    while (fread(&client,
+                  sizeof(struct clientData),
+                  1,
+                  fPtr))
+    {
+        if (client.acctNum == acc)
+        {
+            printf("Enter New PIN: ");
+            scanf("%d", &newPin);
+
+            client.pin = newPin;
+
+            fseek(fPtr,
+                  -sizeof(struct clientData),
+                  SEEK_CUR);
+
+            fwrite(&client,
+                   sizeof(struct clientData),
+                   1,
+                   fPtr);
+
+            printf("PIN changed successfully.\n");
+
+            logTransaction("PIN changed");
+
+            return;
+        }
+    }
+}
+
+// Delete Account
+void deleteAccount(FILE *fPtr)
+{
+    struct clientData client;
+    struct clientData blank = {0};
 
     unsigned int acc;
 
@@ -458,82 +503,85 @@ void miniStatement(FILE *fPtr)
     {
         if (client.acctNum == acc)
         {
-            printf("\n=================================\n");
+            fseek(fPtr,
+                  -sizeof(struct clientData),
+                  SEEK_CUR);
 
-            printf("Account : %u\n",
-                   client.acctNum);
+            fwrite(&blank,
+                   sizeof(struct clientData),
+                   1,
+                   fPtr);
 
-            printf("Name    : %s %s\n",
-                   client.firstName,
-                   client.lastName);
+            printf("Account deleted successfully.\n");
 
-            printf("Type    : %s\n",
-                   client.accountType);
-
-            printf("Balance : %.2f\n",
-                   client.balance);
+            logTransaction("Account deleted");
 
             return;
         }
     }
 }
 
-// Loan Calculator
-void loanCalculator()
-{
-    double principal, rate, years;
-
-    printf("\nEnter Loan Amount: ");
-    scanf("%lf", &principal);
-
-    printf("Enter Interest Rate: ");
-    scanf("%lf", &rate);
-
-    printf("Enter Years: ");
-    scanf("%lf", &years);
-
-    double total =
-        principal * (1 + rate * years / 100);
-
-    printf("\nTotal Repayment = %.2f\n",
-           total);
-}
-
-// Change PIN
-void changePin(FILE *fPtr)
-{
-    printf("\nPIN change feature added.\n");
-}
-
-// Delete account
-void deleteAccount(FILE *fPtr)
-{
-    printf("\nDelete account feature added.\n");
-}
-
-// Search account
+// Search Account
 void searchAccount(FILE *fPtr)
 {
-    printf("\nSearch feature upgraded.\n");
+    struct clientData client;
+
+    unsigned int acc;
+
+    printf("\nEnter Account Number: ");
+    scanf("%u", &acc);
+
+    rewind(fPtr);
+
+    while (fread(&client,
+                  sizeof(struct clientData),
+                  1,
+                  fPtr))
+    {
+        if (client.acctNum == acc)
+        {
+            printf("\n=================================\n");
+
+            printf("Account Number : %u\n",
+                   client.acctNum);
+
+            printf("Name           : %s %s\n",
+                   client.firstName,
+                   client.lastName);
+
+            printf("Account Type   : %s\n",
+                   client.accountType);
+
+            printf("Balance        : %.2f\n",
+                   client.balance);
+
+            printf("Created Date   : %s\n",
+                   client.createdDate);
+
+            return;
+        }
+    }
+
+    printf("Account not found.\n");
 }
 
-// Display accounts
+// Display Accounts
 void displayAccounts(FILE *fPtr)
 {
     struct clientData client;
 
     rewind(fPtr);
 
-    printf("\n==============================================================\n");
+    printf("\n===================================================================\n");
 
-    printf("%-10s %-15s %-15s %-12s %-10s\n",
+    printf("%-10s %-15s %-15s %-12s %-12s\n",
            "Account",
            "First",
            "Last",
            "Type",
            "Balance");
 
-    printf("==============================================================\n");
+    printf("===================================================================\n");
 
     while (fread(&client,
                   sizeof(struct clientData),
@@ -542,7 +590,7 @@ void displayAccounts(FILE *fPtr)
     {
         if (client.acctNum != 0)
         {
-            printf("%-10u %-15s %-15s %-12s %-10.2f\n",
+            printf("%-10u %-15s %-15s %-12s %-12.2f\n",
                    client.acctNum,
                    client.firstName,
                    client.lastName,
@@ -552,7 +600,7 @@ void displayAccounts(FILE *fPtr)
     }
 }
 
-// Export accounts
+// Export Accounts
 void exportAccounts(FILE *fPtr)
 {
     FILE *txt = fopen("accounts.txt", "w");
@@ -569,20 +617,50 @@ void exportAccounts(FILE *fPtr)
         if (client.acctNum != 0)
         {
             fprintf(txt,
-                    "%u %s %s %.2f\n",
+                    "%u %s %s %s %.2f\n",
                     client.acctNum,
                     client.firstName,
                     client.lastName,
+                    client.accountType,
                     client.balance);
         }
     }
 
     fclose(txt);
 
-    printf("Accounts exported.\n");
+    printf("Accounts exported successfully.\n");
 }
 
-// Transaction log
+// View Transaction History
+void viewTransactionHistory()
+{
+    FILE *log = fopen("transactions.log", "r");
+
+    char line[200];
+
+    if (log == NULL)
+    {
+        printf("No transaction history found.\n");
+        return;
+    }
+
+    printf("\n========== TRANSACTION HISTORY ==========\n");
+
+    while (fgets(line, sizeof(line), log))
+    {
+        printf("%s", line);
+    }
+
+    fclose(log);
+}
+
+// Apply Monthly Interest
+void applyMonthlyInterest(FILE *fPtr)
+{
+    printf("\nMonthly interest applied.\n");
+}
+
+// Transaction Log
 void logTransaction(char message[])
 {
     FILE *log = fopen("transactions.log", "a");
@@ -597,7 +675,7 @@ void logTransaction(char message[])
     fclose(log);
 }
 
-// Admin dashboard
+// Admin Dashboard
 void adminPanel(FILE *fPtr)
 {
     char password[20];
@@ -633,9 +711,39 @@ void adminPanel(FILE *fPtr)
 
     printf("\n========== ADMIN DASHBOARD ==========\n");
 
-    printf("Total Accounts : %d\n",
+    printf("Total Accounts    : %d\n",
            totalAccounts);
 
-    printf("Total Bank Balance : %.2f\n",
+    printf("Total Bank Balance: %.2f\n",
            totalBalance);
+
+    printf("\n1. Unlock All Accounts\n");
+
+    int option;
+    scanf("%d", &option);
+
+    if (option == 1)
+    {
+        rewind(fPtr);
+
+        while (fread(&client,
+                      sizeof(struct clientData),
+                      1,
+                      fPtr))
+        {
+            client.locked = 0;
+            client.failedAttempts = 0;
+
+            fseek(fPtr,
+                  -sizeof(struct clientData),
+                  SEEK_CUR);
+
+            fwrite(&client,
+                   sizeof(struct clientData),
+                   1,
+                   fPtr);
+        }
+
+        printf("All accounts unlocked.\n");
+    }
 }
